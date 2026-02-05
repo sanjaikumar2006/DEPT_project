@@ -10,11 +10,10 @@ import { Book, Megaphone, CheckCircle, ArrowLeft, Download, Clock, FileText } fr
 export default function LabDetails({ params }: { params: Promise<{ id: string }> }) {
     const router = useRouter();
     const resolvedParams = use(params);
-    // Decode the ID from the URL (e.g., "CS3401%20(Lab)" -> "CS3401 (Lab)")
     const labId = decodeURIComponent(resolvedParams.id);
 
     const [manuals, setManuals] = useState<any[]>([]);
-    const [announcements, setAnnouncements] = useState<any[]>([]);
+    const [labAnnouncements, setLabAnnouncements] = useState<any[]>([]); // Changed to labAnnouncements
     const [studentProfile, setStudentProfile] = useState<any>(null);
     const [attendance, setAttendance] = useState(0);
     const [loading, setLoading] = useState(true);
@@ -25,25 +24,22 @@ export default function LabDetails({ params }: { params: Promise<{ id: string }>
 
         const fetchLabData = async () => {
             try {
-                // 1. Fetch Student Profile to identify Section
                 const stuRes = await axios.get(`${API_URL}/student/${userId}`);
                 setStudentProfile(stuRes.data);
 
-                // 2. Fetch Materials (Filtered by type "Lab Manual")
-                // We use the full labId (with suffix) to match the database record
+                // Fetch Lab Manuals
                 const matRes = await axios.get(`${API_URL}/materials/${labId}`);
                 setManuals(matRes.data.filter((m: any) => m.type === "Lab Manual"));
 
-                // 3. Fetch Lab-Specific Announcements
+                // CRITICAL FIX: Filter for Lab type announcements only
                 const annRes = await axios.get(`${API_URL}/announcements?student_id=${userId}`);
-                const labOnlyNotices = annRes.data.filter((a: any) => 
-                    a.course_code === labId || (a.course_code === "Global" && a.type === "Student")
+                const labAnnouncements = annRes.data.filter((a: any) => 
+                    a.type === "Lab" && (a.course_code === labId || a.course_code === "Global")
                 );
-                setAnnouncements(labOnlyNotices);
+                setLabAnnouncements(labAnnouncements);
 
-                // 4. Fetch Attendance for this Lab
+                // Fetch Attendance
                 const attRes = await axios.get(`${API_URL}/marks/cia?student_id=${userId}`);
-                // Find the subject that exactly matches the Lab ID (including suffix)
                 const currentLab = attRes.data.find((l: any) => l.subject === labId);
                 setAttendance(currentLab?.subject_attendance || 0);
 
@@ -79,7 +75,6 @@ export default function LabDetails({ params }: { params: Promise<{ id: string }>
                     </button>
                     <div className="flex justify-between items-center">
                         <h1 className="text-3xl font-black text-blue-900 border-l-8 border-teal-500 pl-4 uppercase tracking-tighter">
-                            {/* Remove (Lab) suffix for display purposes only */}
                             {labId.replace(' (Lab)', '')} <span className="text-gray-400 font-light">Laboratory</span>
                         </h1>
                         <span className="bg-teal-600 text-white px-4 py-1 rounded-full font-black text-[10px] uppercase tracking-widest shadow-md">
@@ -118,24 +113,24 @@ export default function LabDetails({ params }: { params: Promise<{ id: string }>
                         </div>
                     </div>
 
-                    {/* Column 2: Internal Notices */}
-                    <div className="bg-white p-6 rounded-2xl shadow-md border-t-4 border-orange-500">
+                    {/* Column 2: Lab Announcements (Changed from Internal Notices) */}
+                    <div className="bg-white p-6 rounded-2xl shadow-md border-t-4 border-purple-600"> {/* Changed border color */}
                         <h2 className="text-xl font-bold mb-6 flex items-center gap-2 text-gray-800 uppercase tracking-widest text-sm">
-                            <Megaphone className="text-orange-500" size={20} /> Internal Notices
+                            <Megaphone className="text-purple-600" size={20} /> Lab Announcements {/* Changed icon color */}
                         </h2>
                         <div className="space-y-4">
-                            {announcements.length > 0 ? announcements.map((a) => (
-                                <div key={a.id} className="bg-orange-50/30 p-4 rounded-xl border border-orange-100 relative shadow-sm">
+                            {labAnnouncements.length > 0 ? labAnnouncements.map((a) => (
+                                <div key={a.id} className="bg-purple-50/30 p-4 rounded-xl border border-purple-100 relative shadow-sm"> {/* Changed background color */}
                                     <div className="flex items-center gap-2 mb-2">
-                                        <Clock size={12} className="text-orange-400" />
+                                        <Clock size={12} className="text-purple-400" /> {/* Changed icon color */}
                                         <h4 className="font-black text-blue-900 text-[10px] uppercase tracking-wider">{a.title}</h4>
                                     </div>
                                     <p className="text-sm text-gray-600 leading-relaxed font-medium">{a.content}</p>
-                                    <p className="text-[8px] text-orange-600 font-bold uppercase mt-2">Posted By: {a.posted_by}</p>
+                                    <p className="text-[8px] text-purple-600 font-bold uppercase mt-2">Lab Notice • Posted By: {a.posted_by}</p> {/* Changed text color */}
                                 </div>
                             )) : (
                                 <div className="text-center py-10">
-                                    <p className="text-gray-400 text-xs italic">No active notices for this lab section.</p>
+                                    <p className="text-gray-400 text-xs italic">No lab announcements for this lab section.</p>
                                 </div>
                             )}
                         </div>
