@@ -402,12 +402,26 @@ async def upload_material(
         cid = course_id
         if not cid:
             course = db.query(models.Course).filter(models.Course.code == course_code).first()
-            if course: cid = course.id
-            else: cid = 0
+            if course: 
+                cid = course.id
+            else: 
+                cid = 0
 
-        db_material = models.Material(course_id=cid, course_code=course_code, type=type, title=title, file_link=file_link, posted_by=posted_by)
+        # FIX: Log the upload details for debugging
+        logger.info(f"Uploading material: course_code={course_code}, course_id={cid}, type={type}, title={title}")
+        
+        db_material = models.Material(
+            course_id=cid, 
+            course_code=course_code.strip().upper(),  # Normalize course code
+            type=type, 
+            title=title, 
+            file_link=file_link, 
+            posted_by=posted_by
+        )
         db.add(db_material)
         db.commit()
+        db.refresh(db_material)
+        logger.info(f"Material uploaded successfully with ID: {db_material.id}")
         return db_material
     except Exception as e:
         logger.error(f"Upload error: {e}")
@@ -415,10 +429,63 @@ async def upload_material(
 
 @app.get("/materials/{identifier}")
 def get_course_materials(identifier: str, db: Session = Depends(get_db)):
+    logger.info(f"Fetching materials for identifier: {identifier}")
+    
     if identifier.isdigit():
-        return db.query(models.Material).filter(models.Material.course_id == int(identifier)).all()
+        materials = db.query(models.Material).filter(models.Material.course_id == int(identifier)).all()
     else:
-        return db.query(models.Material).filter(models.Material.course_code == identifier).all()
+        # FIX: Use partial matching to find materials when student searches with short code
+        clean_identifier = identifier.strip().upper()
+        
+        # Try multiple matching strategies:
+        # 1. Exact match
+        materials = db.query(models.Material).filter(
+            models.Material.course_code == clean_identifier
+        ).all()
+        
+        # 2. If no exact match, try partial match (e.g., "OS" should match "OS320T")
+        if not materials:
+            materials = db.query(models.Material).filter(
+                models.Material.course_code.ilike(f"%{clean_identifier}%")
+            ).all()
+            
+        # 3. Also try matching with course title in AcademicData table
+        if not materials:
+            # Get course code from AcademicData that matches the subject name
+            academic_records = db.query(models.AcademicData).filter(
+                models.AcademicData.subject.ilike(f"%{clean_identifier}%")
+            ).all()
+            
+            if academic_records:
+                course_codes = list(set([r.course_code for r in academic_records]))
+                materials = db.query(models.Material).filter(
+                    models.Material.course_code.in_(course_codes)
+                ).all()
+    
+    logger.info(f"Found {len(materials)} materials for identifier: {identifier}")
+    return materials
+
+# FIX: Add a new endpoint to get materials by course code with section filter
+@app.get("/materials/course/{course_code}")
+def get_materials_by_course_section(
+    course_code: str, 
+    section: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Get materials for a specific course and optional section.
+    This ensures students see only materials uploaded for their section.
+    """
+    clean_course_code = course_code.strip().upper()
+    query = db.query(models.Material).filter(
+        models.Material.course_code.ilike(f"%{clean_course_code}%")
+    )
+    
+    logger.info(f"Fetching materials for course: {course_code}, section: {section}")
+    materials = query.all()
+    logger.info(f"Found {len(materials)} materials for course: {course_code}")
+    
+    return materials
 
 @app.delete("/materials/{material_id}")
 def delete_material(material_id: int, db: Session = Depends(get_db)):
@@ -429,7 +496,8 @@ def delete_material(material_id: int, db: Session = Depends(get_db)):
         try:
             fname = mat.file_link.split("/")[-1]
             os.remove(os.path.join(UPLOAD_DIR, fname))
-        except Exception: pass
+        except Exception: 
+            pass
     db.delete(mat)
     db.commit()
     return {"message": "Deleted"}
@@ -657,3 +725,23 @@ def get_classwise_toppers(year: int, section: str, db: Session = Depends(get_db)
         models.Student.year == year,
         models.Student.section == section
     ).order_by(models.Student.cgpa.desc()).all()
+
+# FIX: Add debug endpoint to check materials
+@app.get("/debug/materials")
+def debug_all_materials(db: Session = Depends(get_db)):
+    """Debug endpoint to see all materials in the database"""
+    materials = db.query(models.Material).all()
+    return {
+        "total_materials": len(materials),
+        "materials": [
+            {
+                "id": m.id,
+                "course_code": m.course_code,
+                "course_id": m.course_id,
+                "type": m.type,
+                "title": m.title,
+                "file_link": m.file_link[:50] + "..." if m.file_link and len(m.file_link) > 50 else m.file_link
+            } 
+            for m in materials
+        ]
+    }

@@ -180,12 +180,13 @@ export default function FacultyDashboard() {
                                             <span className="bg-blue-100 text-blue-700 text-[9px] font-black px-2 py-0.5 rounded uppercase">Section {course.section}</span>
                                         </div>
                                         <p className="text-xs text-gray-500 mb-4 font-semibold h-8 line-clamp-2">{course.title}</p>
-                                        <div className="grid grid-cols-2 gap-2">
-                                            <button onClick={() => router.push(`/faculty/manage/${course.code}/${course.section}`)} className="bg-blue-900 text-white py-1.5 rounded text-[10px] font-bold hover:bg-orange-500 flex items-center justify-center gap-1 transition-colors uppercase tracking-widest">
-                                                <Users size={12} /> Marks
-                                            </button>
-                                            <button onClick={() => router.push(`/faculty/upload/${course.code}/${course.id}`)} className="bg-gray-200 text-gray-800 py-1.5 rounded text-[10px] font-bold hover:bg-blue-600 hover:text-white flex items-center justify-center gap-1 transition-all uppercase tracking-widest">
-                                                <FilePlus size={12} /> Notes
+                                        <div className="grid grid-cols-1 gap-2">
+                                            {/* REMOVED: The separate "Notes" button */}
+                                            <button 
+                                                onClick={() => router.push(`/faculty/manage/${course.code}/${course.section}`)} 
+                                                className="bg-blue-900 text-white py-2 rounded text-[10px] font-bold hover:bg-orange-500 flex items-center justify-center gap-1 transition-colors uppercase tracking-widest"
+                                            >
+                                                <Users size={12} /> Manage Marks & Uploads
                                             </button>
                                         </div>
                                     </div>
@@ -205,12 +206,13 @@ export default function FacultyDashboard() {
                                             <span className="bg-purple-100 text-purple-700 text-[9px] font-black px-2 py-0.5 rounded uppercase">Section {lab.section}</span>
                                         </div>
                                         <p className="text-xs text-gray-500 mb-4 font-semibold h-8 line-clamp-2">{lab.title.replace(' (Lab)', '')}</p>
-                                        <div className="grid grid-cols-2 gap-2">
-                                            <button onClick={() => router.push(`/faculty/manage/${lab.code}/${lab.section}`)} className="bg-purple-600 text-white py-1.5 rounded text-[10px] font-bold hover:bg-orange-500 flex items-center justify-center gap-1 transition-colors uppercase tracking-widest">
-                                                <Users size={12} /> Marks
-                                            </button>
-                                            <button onClick={() => router.push(`/faculty/upload/${lab.code}/${lab.id}`)} className="bg-gray-200 text-gray-800 py-1.5 rounded text-[10px] font-bold hover:bg-purple-600 hover:text-white flex items-center justify-center gap-1 transition-all uppercase tracking-widest">
-                                                <FilePlus size={12} /> Manual
+                                        <div className="grid grid-cols-1 gap-2">
+                                            {/* REMOVED: The separate "Manual" button */}
+                                            <button 
+                                                onClick={() => router.push(`/faculty/manage/${lab.code}/${lab.section}`)} 
+                                                className="bg-purple-600 text-white py-2 rounded text-[10px] font-bold hover:bg-orange-500 flex items-center justify-center gap-1 transition-colors uppercase tracking-widest"
+                                            >
+                                                <Users size={12} /> Manage Marks & Manuals
                                             </button>
                                         </div>
                                     </div>

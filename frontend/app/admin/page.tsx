@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import { API_URL } from '@/config';
@@ -7,8 +7,114 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { 
     Users, GraduationCap, UserCog, ArrowLeft, 
-    Search, Trash2, BookOpen, PlusCircle, Bell, Trophy, Link as LinkIcon, Edit2, X 
+    Search, Trash2, BookOpen, PlusCircle, Bell, Trophy, Link as LinkIcon, Edit2, X, ChevronDown 
 } from 'lucide-react';
+
+// Searchable Dropdown Component
+function SearchableDropdown({ 
+    options, 
+    value, 
+    onChange, 
+    placeholder = "-- Select --",
+    displayKey = "name",
+    valueKey = "id",
+    className = ""
+}: {
+    options: any[];
+    value: string;
+    onChange: (value: string) => void;
+    placeholder?: string;
+    displayKey?: string;
+    valueKey?: string;
+    className?: string;
+}) {
+    const [isOpen, setIsOpen] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    const filteredOptions = options.filter((option) =>
+        option[displayKey]?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        option[valueKey]?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    const selectedOption = options.find(opt => opt[valueKey] === value);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+                setSearchTerm('');
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const handleSelect = (optionValue: string) => {
+        onChange(optionValue);
+        setIsOpen(false);
+        setSearchTerm('');
+    };
+
+    return (
+        <div ref={dropdownRef} className={`relative ${className}`}>
+            <button
+                type="button"
+                onClick={() => setIsOpen(!isOpen)}
+                className="w-full p-2.5 border rounded-lg bg-gray-50 text-left flex items-center justify-between hover:bg-gray-100 transition-colors"
+            >
+                <span className={selectedOption ? "text-gray-900 font-medium" : "text-gray-400"}>
+                    {selectedOption 
+                        ? `${selectedOption[displayKey]} (${selectedOption[valueKey]})`
+                        : placeholder
+                    }
+                </span>
+                <ChevronDown size={18} className={`text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {isOpen && (
+                <div className="absolute z-50 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-64 overflow-hidden">
+                    <div className="p-2 border-b sticky top-0 bg-white">
+                        <div className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-lg">
+                            <Search size={16} className="text-gray-400" />
+                            <input
+                                type="text"
+                                placeholder="Search faculty..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="bg-transparent outline-none text-sm w-full"
+                                autoFocus
+                            />
+                        </div>
+                    </div>
+                    
+                    <div className="overflow-y-auto max-h-48">
+                        {filteredOptions.length > 0 ? (
+                            filteredOptions.map((option) => (
+                                <button
+                                    key={option[valueKey]}
+                                    type="button"
+                                    onClick={() => handleSelect(option[valueKey])}
+                                    className={`w-full text-left px-4 py-2.5 hover:bg-blue-50 transition-colors ${
+                                        value === option[valueKey] ? 'bg-blue-100 text-blue-700 font-semibold' : 'text-gray-700'
+                                    }`}
+                                >
+                                    <div className="font-medium">{option[displayKey]}</div>
+                                    <div className="text-xs text-gray-500">{option[valueKey]}</div>
+                                </button>
+                            ))
+                        ) : (
+                            <div className="px-4 py-6 text-center text-gray-400 text-sm">
+                                No faculty found
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
 
 export default function AdminDashboard() {
     const router = useRouter();
@@ -27,7 +133,7 @@ export default function AdminDashboard() {
 
     // --- Modal State for Editing ---
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-    const [editingUser, setEditingUser] = useState<any>(null); // Shared state for Student/Faculty
+    const [editingUser, setEditingUser] = useState<any>(null);
 
     // --- Bulk Upload State ---
     const [bulkFile, setBulkFile] = useState<File | null>(null);
@@ -51,11 +157,11 @@ export default function AdminDashboard() {
 
     // State for Course Management
     const [courseData, setCourseData] = useState({ 
-        code: '', title: '', semester: 1, credits: 3, section: 'A', faculty_id: '' 
+        code: '', title: '', year: 1, semester: 1, credits: 3, section: 'A', faculty_id: '' 
     });
 
     const [labData, setLabData] = useState({ 
-        code: '', title: '', semester: 1, credits: 2, section: 'A', faculty_id: '' 
+        code: '', title: '', year: 1, semester: 1, credits: 2, section: 'A', faculty_id: '' 
     });
 
     const [courses, setCourses] = useState([]);
@@ -240,11 +346,20 @@ export default function AdminDashboard() {
             const payload = {
                 ...data,
                 title: isLab && !data.title.includes('(Lab)') ? `${data.title} (Lab)` : data.title,
+                year: Number(data.year),
                 semester: Number(data.semester),
                 credits: Number(data.credits)
             };
             await axios.post(`${API_URL}/admin/courses`, payload);
             alert("Subject added!");
+            
+            // Clear the form
+            if (activeTab === 'courses') {
+                setCourseData({ code: '', title: '', year: 1, semester: 1, credits: 3, section: 'A', faculty_id: '' });
+            } else {
+                setLabData({ code: '', title: '', year: 1, semester: 1, credits: 2, section: 'A', faculty_id: '' });
+            }
+            
             fetchCourses();
         } catch (err: any) { alert("Failed to add subject"); }
     };
@@ -490,18 +605,75 @@ export default function AdminDashboard() {
                                 <p className="text-[10px] text-red-600 font-bold mb-6 uppercase tracking-wider italic">* Note: Create subjects before creating students for particular sem.</p>
                                 <form onSubmit={(e) => handleAddSubject(e, activeTab === 'courses' ? courseData : labData, activeTab === 'labs')} className="space-y-4">
                                     <input type="text" placeholder="Code" value={activeTab === 'courses' ? courseData.code : labData.code} onChange={(e) => activeTab === 'courses' ? setCourseData({...courseData, code: e.target.value}) : setLabData({...labData, code: e.target.value})} className="w-full p-2.5 border rounded-lg" required />
+                                    
                                     <input type="text" placeholder="Subject Name" value={activeTab === 'courses' ? courseData.title : labData.title} onChange={(e) => activeTab === 'courses' ? setCourseData({...courseData, title: e.target.value}) : setLabData({...labData, title: e.target.value})} className="w-full p-2.5 border rounded-lg" required />
+                                    
                                     <div className="flex space-x-4">
-                                        <input type="number" placeholder="Sem" value={activeTab === 'courses' ? courseData.semester : labData.semester} onChange={(e) => activeTab === 'courses' ? setCourseData({...courseData, semester: Number(e.target.value)}) : setLabData({...labData, semester: Number(e.target.value)})} className="w-1/2 p-2.5 border rounded-lg" />
-                                        <input type="number" placeholder="Credits" value={activeTab === 'courses' ? courseData.credits : labData.credits} onChange={(e) => activeTab === 'courses' ? setCourseData({...courseData, credits: Number(e.target.value)}) : setLabData({...labData, credits: Number(e.target.value)})} className="w-1/2 p-2.5 border rounded-lg" />
+                                        <div className="w-1/3">
+                                            <label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase">Year</label>
+                                            <select 
+                                                value={activeTab === 'courses' ? courseData.year || 1 : labData.year || 1} 
+                                                onChange={(e) => activeTab === 'courses' 
+                                                    ? setCourseData({...courseData, year: Number(e.target.value)}) 
+                                                    : setLabData({...labData, year: Number(e.target.value)})} 
+                                                className="w-full p-2.5 border rounded-lg bg-white font-medium"
+                                            >
+                                                <option value={1}>1st Year</option>
+                                                <option value={2}>2nd Year</option>
+                                                <option value={3}>3rd Year</option>
+                                                <option value={4}>4th Year</option>
+                                            </select>
+                                        </div>
+                                        <div className="w-1/3">
+                                            <label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase">Sem</label>
+                                            <select 
+                                                value={activeTab === 'courses' ? courseData.semester : labData.semester} 
+                                                onChange={(e) => activeTab === 'courses' 
+                                                    ? setCourseData({...courseData, semester: Number(e.target.value)}) 
+                                                    : setLabData({...labData, semester: Number(e.target.value)})} 
+                                                className="w-full p-2.5 border rounded-lg bg-white font-medium"
+                                            >
+                                                <option value={1}>1st Sem</option>
+                                                <option value={2}>2nd Sem</option>
+                                                <option value={3}>3rd Sem</option>
+                                                <option value={4}>4th Sem</option>
+                                                <option value={5}>5th Sem</option>
+                                                <option value={6}>6th Sem</option>
+                                                <option value={7}>7th Sem</option>
+                                                <option value={8}>8th Sem</option>
+                                            </select>
+                                        </div>
+                                        <div className="w-1/3">
+                                            <label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase">Credits</label>
+                                            <input 
+                                                type="number" 
+                                                placeholder="3" 
+                                                value={activeTab === 'courses' ? courseData.credits : labData.credits} 
+                                                onChange={(e) => activeTab === 'courses' 
+                                                    ? setCourseData({...courseData, credits: Number(e.target.value)}) 
+                                                    : setLabData({...labData, credits: Number(e.target.value)})} 
+                                                className="w-full p-2.5 border rounded-lg" 
+                                            />
+                                        </div>
                                     </div>
                                     <select value={activeTab === 'courses' ? courseData.section : labData.section} onChange={(e) => activeTab === 'courses' ? setCourseData({...courseData, section: e.target.value}) : setLabData({...labData, section: e.target.value})} className="w-full p-2.5 border rounded-lg bg-orange-50 font-bold">
                                         <option value="A">Section A</option><option value="B">Section B</option><option value="C">Section C</option>
                                     </select>
-                                    <select value={activeTab === 'courses' ? courseData.faculty_id : labData.faculty_id} onChange={(e) => activeTab === 'courses' ? setCourseData({...courseData, faculty_id: e.target.value}) : setLabData({...labData, faculty_id: e.target.value})} className="w-full p-2.5 border rounded-lg bg-gray-50" required>
-                                        <option value="">-- Assign Faculty --</option>
-                                        {faculties.map((f: any) => <option key={f.staff_no} value={f.staff_no}>{f.name} ({f.staff_no})</option>)}
-                                    </select>
+                                    
+                                    {/* Searchable Faculty Dropdown */}
+                                    <SearchableDropdown
+                                        options={faculties}
+                                        value={activeTab === 'courses' ? courseData.faculty_id : labData.faculty_id}
+                                        onChange={(value) => activeTab === 'courses' 
+                                            ? setCourseData({...courseData, faculty_id: value}) 
+                                            : setLabData({...labData, faculty_id: value})
+                                        }
+                                        placeholder="-- Assign Faculty --"
+                                        displayKey="name"
+                                        valueKey="staff_no"
+                                        className="w-full"
+                                    />
+                                    
                                     <button type="submit" className={`p-2.5 rounded-lg w-full font-bold text-white ${activeTab === 'courses' ? 'bg-green-600' : 'bg-purple-600'}`}>Create Subject</button>
                                 </form>
                             </div>
