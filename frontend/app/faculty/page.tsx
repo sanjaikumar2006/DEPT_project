@@ -181,7 +181,6 @@ export default function FacultyDashboard() {
                                         </div>
                                         <p className="text-xs text-gray-500 mb-4 font-semibold h-8 line-clamp-2">{course.title}</p>
                                         <div className="grid grid-cols-1 gap-2">
-                                            {/* REMOVED: The separate "Notes" button */}
                                             <button 
                                                 onClick={() => router.push(`/faculty/manage/${course.code}/${course.section}`)} 
                                                 className="bg-blue-900 text-white py-2 rounded text-[10px] font-bold hover:bg-orange-500 flex items-center justify-center gap-1 transition-colors uppercase tracking-widest"
@@ -207,12 +206,12 @@ export default function FacultyDashboard() {
                                         </div>
                                         <p className="text-xs text-gray-500 mb-4 font-semibold h-8 line-clamp-2">{lab.title.replace(' (Lab)', '')}</p>
                                         <div className="grid grid-cols-1 gap-2">
-                                            {/* REMOVED: The separate "Manual" button */}
+                                            {/* FIXED: Changed route to /labmanage for lab subjects */}
                                             <button 
-                                                onClick={() => router.push(`/faculty/manage/${lab.code}/${lab.section}`)} 
+                                                onClick={() => router.push(`/faculty/labmanage/${lab.code}/${lab.section}`)} 
                                                 className="bg-purple-600 text-white py-2 rounded text-[10px] font-bold hover:bg-orange-500 flex items-center justify-center gap-1 transition-colors uppercase tracking-widest"
                                             >
-                                                <Users size={12} /> Manage Marks & Manuals
+                                                <Users size={12} /> Manage Lab
                                             </button>
                                         </div>
                                     </div>
